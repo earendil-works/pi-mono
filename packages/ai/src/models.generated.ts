@@ -1012,7 +1012,7 @@ export const MODELS = {
 			contextWindow: 200000,
 			maxTokens: 100000,
 		} satisfies Model<"openai-responses">,
-		"o1": {
+		o1: {
 			id: "o1",
 			name: "o1",
 			api: "openai-responses",
@@ -1097,7 +1097,7 @@ export const MODELS = {
 			contextWindow: 400000,
 			maxTokens: 128000,
 		} satisfies Model<"openai-responses">,
-		"o3": {
+		o3: {
 			id: "o3",
 			name: "o3",
 			api: "openai-responses",

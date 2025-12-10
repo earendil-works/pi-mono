@@ -98,8 +98,18 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions"> = (
 						const textBlock: TextContent = { type: "text", text: choice.message.content };
 						output.content.push(textBlock);
 						stream.push({ type: "text_start", contentIndex: output.content.length - 1, partial: output });
-						stream.push({ type: "text_delta", contentIndex: output.content.length - 1, delta: choice.message.content, partial: output });
-						stream.push({ type: "text_end", contentIndex: output.content.length - 1, content: choice.message.content, partial: output });
+						stream.push({
+							type: "text_delta",
+							contentIndex: output.content.length - 1,
+							delta: choice.message.content,
+							partial: output,
+						});
+						stream.push({
+							type: "text_end",
+							contentIndex: output.content.length - 1,
+							content: choice.message.content,
+							partial: output,
+						});
 					}
 
 					// Handle OpenRouter images field
@@ -114,7 +124,12 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions"> = (
 								const imageBlock: ImageContent = { type: "image", data, mimeType };
 								output.content.push(imageBlock);
 								stream.push({ type: "image_start", contentIndex: output.content.length - 1, partial: output });
-								stream.push({ type: "image_end", contentIndex: output.content.length - 1, image: imageBlock, partial: output });
+								stream.push({
+									type: "image_end",
+									contentIndex: output.content.length - 1,
+									image: imageBlock,
+									partial: output,
+								});
 							}
 						}
 					}

@@ -159,7 +159,12 @@ export const streamGoogle: StreamFunction<"google-generative-ai"> = (
 								};
 								output.content.push(imageBlock);
 								stream.push({ type: "image_start", contentIndex: blockIndex(), partial: output });
-								stream.push({ type: "image_end", contentIndex: blockIndex(), image: imageBlock, partial: output });
+								stream.push({
+									type: "image_end",
+									contentIndex: blockIndex(),
+									image: imageBlock,
+									partial: output,
+								});
 							}
 						}
 
