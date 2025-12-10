@@ -12,6 +12,7 @@ import type {
 	Api,
 	AssistantMessage,
 	Context,
+	ImageContent,
 	Model,
 	StopReason,
 	StreamFunction,
@@ -127,6 +128,38 @@ export const streamGoogle: StreamFunction<"google-generative-ai"> = (
 									delta: part.text,
 									partial: output,
 								});
+							}
+						}
+
+						if (part.inlineData) {
+							if (currentBlock) {
+								if (currentBlock.type === "text") {
+									stream.push({
+										type: "text_end",
+										contentIndex: blockIndex(),
+										content: currentBlock.text,
+										partial: output,
+									});
+								} else {
+									stream.push({
+										type: "thinking_end",
+										contentIndex: blockIndex(),
+										content: currentBlock.thinking,
+										partial: output,
+									});
+								}
+								currentBlock = null;
+							}
+
+							if (part.inlineData.data && part.inlineData.mimeType) {
+								const imageBlock: ImageContent = {
+									type: "image",
+									data: part.inlineData.data,
+									mimeType: part.inlineData.mimeType,
+								};
+								output.content.push(imageBlock);
+								stream.push({ type: "image_start", contentIndex: blockIndex(), partial: output });
+								stream.push({ type: "image_end", contentIndex: blockIndex(), image: imageBlock, partial: output });
 							}
 						}
 
@@ -326,18 +359,20 @@ function convertMessages(model: Model<"google-generative-ai">, context: Context)
 					parts: [{ text: sanitizeSurrogates(msg.content) }],
 				});
 			} else {
-				const parts: Part[] = msg.content.map((item) => {
+				const parts: Part[] = [];
+				for (const item of msg.content) {
 					if (item.type === "text") {
-						return { text: sanitizeSurrogates(item.text) };
-					} else {
-						return {
+						parts.push({ text: sanitizeSurrogates(item.text) });
+					} else if (item.type === "image") {
+						parts.push({
 							inlineData: {
 								mimeType: item.mimeType,
 								data: item.data,
 							},
-						};
+						});
 					}
-				});
+					// Skip unknown content types
+				}
 				const filteredParts = !model.input.includes("image") ? parts.filter((p) => p.text !== undefined) : parts;
 				if (filteredParts.length === 0) continue;
 				contents.push({
@@ -358,6 +393,13 @@ function convertMessages(model: Model<"google-generative-ai">, context: Context)
 						text: sanitizeSurrogates(block.thinking),
 					};
 					parts.push(thinkingPart);
+				} else if (block.type === "image") {
+					parts.push({
+						inlineData: {
+							mimeType: block.mimeType,
+							data: block.data,
+						},
+					});
 				} else if (block.type === "toolCall") {
 					const part: Part = {
 						functionCall: {

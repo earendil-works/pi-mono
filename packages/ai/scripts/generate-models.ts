@@ -38,8 +38,11 @@ async function fetchOpenRouterModels(): Promise<Model<any>[]> {
 		const models: Model<any>[] = [];
 
 		for (const model of data.data) {
-			// Only include models that support tools
-			if (!model.supported_parameters?.includes("tools")) continue;
+			// Include models that support tools OR image output (for image generation)
+			const supportsTools = model.supported_parameters?.includes("tools");
+			const supportsImageOutput = model.architecture?.output_modalities?.includes("image");
+
+			if (!supportsTools && !supportsImageOutput) continue;
 
 			// Parse provider from model ID
 			let provider: KnownProvider = "openrouter";

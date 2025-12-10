@@ -11,6 +11,7 @@ import { calculateCost } from "../models.js";
 import type {
 	AssistantMessage,
 	Context,
+	ImageContent,
 	Message,
 	Model,
 	OpenAICompat,
@@ -80,6 +81,77 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions"> = (
 		try {
 			const client = createClient(model, options?.apiKey);
 			const params = buildParams(model, context, options);
+
+			// Check if this is an OpenRouter image generation model
+			const isImageGen = model.baseUrl.includes("openrouter") && model.id.includes("image");
+
+			// For image generation, use non-streaming to get images field
+			if (isImageGen) {
+				const nonStreamParams = { ...params, stream: false, stream_options: undefined };
+				const response = await client.chat.completions.create(nonStreamParams as any, { signal: options?.signal });
+				stream.push({ type: "start", partial: output });
+
+				const choice = response.choices[0];
+				if (choice) {
+					// Handle text content
+					if (choice.message.content) {
+						const textBlock: TextContent = { type: "text", text: choice.message.content };
+						output.content.push(textBlock);
+						stream.push({ type: "text_start", contentIndex: output.content.length - 1, partial: output });
+						stream.push({ type: "text_delta", contentIndex: output.content.length - 1, delta: choice.message.content, partial: output });
+						stream.push({ type: "text_end", contentIndex: output.content.length - 1, content: choice.message.content, partial: output });
+					}
+
+					// Handle OpenRouter images field
+					const images = (choice.message as any).images || [];
+					for (const img of images) {
+						const imageUrl = img.image_url?.url || img.image_url;
+						if (imageUrl?.startsWith("data:")) {
+							const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+							if (matches) {
+								const mimeType = matches[1];
+								const data = matches[2];
+								const imageBlock: ImageContent = { type: "image", data, mimeType };
+								output.content.push(imageBlock);
+								stream.push({ type: "image_start", contentIndex: output.content.length - 1, partial: output });
+								stream.push({ type: "image_end", contentIndex: output.content.length - 1, image: imageBlock, partial: output });
+							}
+						}
+					}
+
+					// Handle usage
+					if (response.usage) {
+						const cachedTokens = response.usage.prompt_tokens_details?.cached_tokens || 0;
+						const reasoningTokens = response.usage.completion_tokens_details?.reasoning_tokens || 0;
+						const input = (response.usage.prompt_tokens || 0) - cachedTokens;
+						const outputTokens = (response.usage.completion_tokens || 0) + reasoningTokens;
+						output.usage = {
+							input,
+							output: outputTokens,
+							cacheRead: cachedTokens,
+							cacheWrite: 0,
+							totalTokens: input + outputTokens + cachedTokens,
+							cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+						};
+						calculateCost(model, output.usage);
+					}
+
+					if (choice.finish_reason) {
+						output.stopReason = mapStopReason(choice.finish_reason);
+					}
+				}
+
+				// Only push "done" for valid stop reasons
+				if (output.stopReason === "stop" || output.stopReason === "length" || output.stopReason === "toolUse") {
+					stream.push({ type: "done", reason: output.stopReason, message: output });
+				} else {
+					stream.push({ type: "error", reason: output.stopReason as "aborted" | "error", error: output });
+				}
+				stream.end();
+				return;
+			}
+
+			// Standard streaming mode
 			const openaiStream = await client.chat.completions.create(params, { signal: options?.signal });
 			stream.push({ type: "start", partial: output });
 
