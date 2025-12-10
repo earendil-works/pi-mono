@@ -1989,6 +1989,23 @@ export const MODELS = {
 			contextWindow: 204800,
 			maxTokens: 131072,
 		} satisfies Model<"anthropic-messages">,
+		"glm-4.6v": {
+			id: "glm-4.6v",
+			name: "GLM-4.6V",
+			api: "anthropic-messages",
+			provider: "zai",
+			baseUrl: "https://api.z.ai/api/anthropic",
+			reasoning: true,
+			input: ["text", "image"],
+			cost: {
+				input: 0.3,
+				output: 0.9,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+			contextWindow: 128000,
+			maxTokens: 32768,
+		} satisfies Model<"anthropic-messages">,
 	},
 	openrouter: {
 		"mistralai/devstral-2512:free": {
@@ -4499,13 +4516,13 @@ export const MODELS = {
 			reasoning: false,
 			input: ["text", "image"],
 			cost: {
-				input: 0.136,
-				output: 0.6799999999999999,
+				input: 0.15,
+				output: 0.6,
 				cacheRead: 0,
 				cacheWrite: 0,
 			},
 			contextWindow: 1048576,
-			maxTokens: 8192,
+			maxTokens: 16384,
 		} satisfies Model<"openai-completions">,
 		"meta-llama/llama-4-scout": {
 			id: "meta-llama/llama-4-scout",
